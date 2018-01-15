@@ -32,7 +32,7 @@ NeuralNetwork::NeuralNetwork(int InputNeurons, int HiddenLayers, int HiddenNeuro
     cout << "TOTAL SPACE FOR WEIGHTS AND BIASES: " << TotalWeightsAndBiases * 4 / 1024 << "KB" << endl;
 
     //Allocate device memory for weights and biases
-    float* WeightsAndBiases;
+    float *WeightsAndBiases;
     cudaMalloc((void**)&WeightsAndBiases, TotalWeightsAndBiases * sizeof(float));
     cout << "GPU SPACE ALLOCATED FOR WEIGHTS AND BIASES" << endl;
 
