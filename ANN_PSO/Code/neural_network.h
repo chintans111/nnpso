@@ -16,10 +16,11 @@ class NeuralNetwork
 private:
     int InputNeurons, HiddenLayers, HiddenNeurons, OutputNeurons;
     int NumParticles;
+    float *Velocities, *FitnessArray;
     float *WeightsAndBiases;
     float *InputHidden, *HiddenHidden, *HiddenOutput;
-    curandState *States;
-    float *Input, *Output;
+    float *InputFeatures, *OutputFeatures;
+    curandState_t *States;
 
 public:
     //Randomly initialize weights and biases for all particles of the swarm
@@ -29,11 +30,12 @@ public:
     //Load data from a file into the main memory/GPU memory (as needed)
     //Reshape data if needed (especially separating input features from output labels)
     //Set up streams later on if needed
-    void Load(const char*);
+    void Load(const char *);
 
     //Train()
     //FeedForward combined with PSO
     //Number of particles taken from constructor
+    void Train(int);
 
 
     //Test()
