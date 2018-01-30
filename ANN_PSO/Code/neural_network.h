@@ -16,9 +16,8 @@ class NeuralNetwork
 private:
     int InputNeurons, HiddenLayers, HiddenNeurons, OutputNeurons;
     int NumParticles;
-    float *Velocities, *FitnessArray;
+    float *Velocities, *FitnessArray, *PersonalBestWeights;
     float *WeightsAndBiases;
-    float *InputHidden, *HiddenHidden, *HiddenOutput;
     float *InputFeatures, *OutputFeatures;
     curandState_t *States;
 

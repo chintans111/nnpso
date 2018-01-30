@@ -4,6 +4,7 @@
 #define INF 1000000000
 //Basic cuda error checking macro
 //TODO: Add cuRAND and cuBLAS error checking macros
+//TODO: Wrap all calls in relevant error checking macros
 #define cudaCheckError()\
 {\
 	cudaError_t e = cudaGetLastError();\
@@ -16,12 +17,41 @@
 
 using namespace std;
 
+typedef struct PSOParameters
+{
+	curandState_t *States = NULL;
+	int NumParticles = 0;
+	float *FitnessArray = NULL;
+	float *PersonalBestWeights = NULL;
+	float C1 = 0.0f, C2 = 0.0f;
+} PSOParameters;
+
+typedef struct NNParameters
+{
+	int Epochs = 0;
+	int InputNeurons = 0;
+	int HiddenLayers = 0;
+	int HiddenNeurons = 0;
+	int OutputNeurons = 0;
+	float *WeightsAndBiases = NULL;
+	float *InputFeatures = NULL;
+	float *OutputFeatures = NULL;
+} NNParameters;
+
 __global__
 void Normalize(float *Array, int Number, float MaxValue)
 {
     int Index = blockDim.x * blockIdx.x + threadIdx.x;
     if(Index < Number)
         Array[Index] = (Array[Index] - 0.5f) * MaxValue;
+}
+
+__global__
+void DeviceToDevice(float *Destination, float *Source, int Size)
+{
+	int Index = blockIdx.x * blockDim.x + threadIdx.x;
+	if(Index < Size)
+		Destination[Index] = Source[Index];
 }
 
 __device__
@@ -32,38 +62,38 @@ float ActivationFunction(float Input)
 }
 
 __global__
-void TrainKernel(int Epochs, float *WeightsAndBiases, curandState_t *States, int NumParticles, float *FitnessArray)
+void TrainKernel(NNParameters NNParams, PSOParameters PSOParams)
 {
     //Particle index is block index since there is one block for each particle
-    int Index = blockIdx.x;
+    int Index = blockIdx.x * blockDim.x + threadIdx.x;
 
     //Initialize PBest and LBest
     float PersonalBest = INF;
     float LocalBest = INF;
     float Fitness = 0.0f;
 
-    //Set left and right neighbours
-	int Left = (NumParticles + Index - 1) % NumParticles;
-	int Right = (1 + Index) % NumParticles;
-
-    //Initialize random number generator states
-    curand_init(Index, Index, 0, &States[Index]);
-    curandState_t LocalState = States[Index];
-
-    //Initialize c1, c2, chi
-    float C1 = 2.05f, C2 = 2.05f;
-    float Psi = C1 + C2;
+    //Initialize chi, declare r1, r2
+    float Psi = PSOParams.C1 + PSOParams.C2;
     float Chi = abs(2.0f / (2.0f - Psi - sqrt(Psi * Psi - 4.0f * Psi)));
-    // printf("PSI: %.5f\t\tCHI: %.5f\n", Psi, Chi);
 	float R1, R2;
 
+    //Set left and right neighbours
+	int Left = (PSOParams.NumParticles + Index - 1) % PSOParams.NumParticles;
+	int Right = (1 + Index) % PSOParams.NumParticles;
+
+    //Initialize random number generator states
+    curand_init(Index, Index, 0, &PSOParams.States[Index]);
+    curandState_t LocalState = PSOParams.States[Index];
+
+	//cuBLAS handle initialization
+
     //For each epoch
-    for(int i = 0; i < Epochs; i++)
+    for(int i = 0; i < NNParams.Epochs; i++)
     {
         Fitness = 0.0f;
 
+		//Main feed forward work to be done here
         //Calculate fitness, i.e. loss (MSE?)
-        //Main feed forward work to be done here
 
 
         if(Fitness < PersonalBest)
@@ -112,6 +142,11 @@ NeuralNetwork::NeuralNetwork(int InputNeurons, int HiddenLayers, int HiddenNeuro
     cudaMalloc((void**)&WeightsAndBiases, TotalWeightsAndBiases * sizeof(float));
     cout << "GPU SPACE ALLOCATED FOR WEIGHTS AND BIASES" << endl;
 
+	//Allocate device memory for weights and biases
+    float *PersonalBestWeights;
+    cudaMalloc((void**)&PersonalBestWeights, TotalWeightsAndBiases * sizeof(float));
+    cout << "GPU SPACE ALLOCATED FOR PERSONAL BEST WEIGHTS AND BIASES" << endl;
+
     //Allocate device memory for velocities
     float *Velocities;
     cudaMalloc((void**)&Velocities, TotalWeightsAndBiases * sizeof(float));
@@ -139,6 +174,10 @@ NeuralNetwork::NeuralNetwork(int InputNeurons, int HiddenLayers, int HiddenNeuro
     this->WeightsAndBiases = WeightsAndBiases;
     cout << "WEIGHTS AND BIASES INITIALIZED ON GPU" << endl;
 
+	//Copy generated weights and biases to personal best array for initialization
+	// DeviceToDevice <<<Grid, Block>>> (PersonalBestWeights, WeightsAndBiases, TotalWeightsAndBiases);
+	this->PersonalBestWeights = PersonalBestWeights;
+
     //Generate velocities
     curandGenerateUniform(Gen, Velocities, TotalWeightsAndBiases);
     Normalize <<<Grid, Block>>> (Velocities, TotalWeightsAndBiases, 5.0f);
@@ -158,15 +197,6 @@ NeuralNetwork::NeuralNetwork(int InputNeurons, int HiddenLayers, int HiddenNeuro
 
     //Weights and Biases to be stored in a single contiguous array
     //In Column Major format(?) (Verify) (Not necessary since only random init taking place here)
-
-    //Pointers to required positions
-    this->InputHidden = this->WeightsAndBiases;
-    this->HiddenHidden = this->InputHidden
-                        + ((InputNeurons + 1) * HiddenNeurons) * NumParticles;
-    this->HiddenOutput = this->HiddenHidden
-                        + (((HiddenNeurons +1) * HiddenNeurons)
-                        * (HiddenLayers - 1)) * NumParticles;
-    cout << "LAYER POINTERS SET" << endl;
 
     //Synchronize all kernel calls upto this point
     cudaDeviceSynchronize();
@@ -238,7 +268,27 @@ void NeuralNetwork::Train(int Epochs)
     float *Fitness;
     cudaMalloc((void**)&Fitness, this->NumParticles);
 
+	//NN parameters struct
+	NNParameters NNParams;
+	NNParams.Epochs = Epochs;
+	NNParams.InputNeurons = this->InputNeurons;
+	NNParams.HiddenLayers = this->HiddenLayers;
+	NNParams.HiddenNeurons = this->HiddenNeurons;
+	NNParams.OutputNeurons = this->OutputNeurons;
+	NNParams.InputFeatures = this->InputFeatures;
+	NNParams.OutputFeatures = this->OutputFeatures;
+	NNParams.WeightsAndBiases = this->WeightsAndBiases;
+
+	//PSO parameters struct
+	PSOParameters PSOParams;
+	PSOParams.NumParticles = this->NumParticles;
+	PSOParams.C1 = 2.05f;
+	PSOParams.C2 = 2.05f;
+	PSOParams.FitnessArray = this->FitnessArray;
+	PSOParams.States = this->States;
+	PSOParams.PersonalBestWeights = this->PersonalBestWeights;
+
     //Training kernel
-    TrainKernel <<<Grid, Block>>> (Epochs, this->WeightsAndBiases, this->States, this->NumParticles, this->FitnessArray);
+    TrainKernel <<<Grid, Block>>> (NNParams, PSOParams);
     cudaDeviceSynchronize();
 }
