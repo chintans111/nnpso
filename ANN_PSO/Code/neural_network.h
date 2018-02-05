@@ -15,10 +15,11 @@ class NeuralNetwork
 {
 private:
     int InputNeurons, HiddenLayers, HiddenNeurons, OutputNeurons;
-    int NumParticles;
-    float *Velocities, *FitnessArray, *PersonalBestWeights;
+    int NumParticles, NetworkSize;
+    int MaxIOLength, NumVectors;
     float *WeightsAndBiases;
-    float *InputFeatures, *OutputFeatures;
+    float *InputFeatures, *OutputFeatures, *IntermediateIO;
+    float *Velocities, *FitnessArray, *PersonalBestWeights;
     curandState_t *States;
 
 public:
