@@ -10,6 +10,11 @@ int main()
     cout << "LOAD INVOKED" << endl;
     NN.Load("train.txt");
 
-    // cout << "TRAIN INVOKED" << endl;
-    NN.Train(10);
+    cout << "TRAIN INVOKED" << endl;
+    NN.Train(5000, "weights.txt");
+
+    cout << "TEST INVOKED" << endl;
+    NN.Test("test.txt", "weights.txt");
+
+    // NN.CheckKernel();
 }

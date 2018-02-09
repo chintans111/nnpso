@@ -4,12 +4,15 @@
 #include <iostream>
 #include <fstream>
 #include <ctime>
+#include <cstdio>
+#include <math.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <curand.h>
 #include <curand_kernel.h>
 #include <cublas_v2.h>
-#include <math.h>
+#include <thrust/execution_policy.h>
+#include <thrust/sort.h>
 
 class NeuralNetwork
 {
@@ -35,15 +38,16 @@ public:
     //Train()
     //FeedForward combined with PSO
     //Number of particles taken from constructor
-    void Train(int);
+    void Train(int, const char *);
 
 
     //Test()
     //Use the best set of weights and biases amongst all particles
-
+    void Test(const char *, const char *);
 
     //Dump()
     //Dump the best set of weights and biases to a file
+    void CheckKernel();
 };
 
 #endif
