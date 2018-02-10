@@ -11,10 +11,10 @@ int main()
     NN.Load("train.txt");
 
     cout << "TRAIN INVOKED" << endl;
-    NN.Train(5000, "weights.txt");
+    NN.Train(10, "weights.txt");
 
     cout << "TEST INVOKED" << endl;
-    NN.Test("test.txt", "weights.txt");
+    NN.Test("train.txt", "epochs20k_weights.txt");
 
     // NN.CheckKernel();
 }

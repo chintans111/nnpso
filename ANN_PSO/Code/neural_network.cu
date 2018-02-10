@@ -429,11 +429,6 @@ NeuralNetwork::NeuralNetwork(int InputNeurons, int HiddenLayers, int HiddenNeuro
     this->States = States;
     cout << "SPACE ALLOCATED FOR CURAND STATES" << endl;
 
-    // float* temp = new float[TotalWeightsAndBiases];
-    // cudaMemcpy(temp, WeightsAndBiases, TotalWeightsAndBiases * sizeof(float), cudaMemcpyDeviceToHost);
-    // for(int i = 0; i < TotalWeightsAndBiases; i++)
-    //     cout << temp[i] << endl;
-
     //Synchronize all kernel calls upto this point
     cudaDeviceSynchronize();
 }
