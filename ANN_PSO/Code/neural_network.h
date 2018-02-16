@@ -14,6 +14,37 @@
 #include <thrust/execution_policy.h>
 #include <thrust/sort.h>
 
+typedef struct PSOParameters
+{
+	curandState_t *States = NULL;
+	int NumParticles = 0;
+	float *FitnessArray = NULL;
+	float *PersonalBestFitness = NULL;
+	float *PersonalBestWeights = NULL;
+	float *Velocities = NULL;
+	float C1 = 0.0f;
+	float C2 = 0.0f;
+	float Chi = 0.0f;
+	float XMax = 0.0f;
+	float VMax = 0.0f;
+} PSOParameters;
+
+typedef struct NNParameters
+{
+	int Epochs = 0;
+	int InputNeurons = 0;
+	int HiddenLayers = 0;
+	int HiddenNeurons = 0;
+	int OutputNeurons = 0;
+	int NetworkSize = 0;
+	int MaxIOLength = 0;
+	int NumVectors = 0;
+	float *WeightsAndBiases = NULL;
+	float *InputFeatures = NULL;
+	float *IntermediateIO = NULL;
+	float *OutputFeatures = NULL;
+} NNParameters;
+
 class NeuralNetwork
 {
 private:
@@ -22,7 +53,7 @@ private:
     int MaxIOLength, NumVectors;
     float *WeightsAndBiases;
     float *InputFeatures, *OutputFeatures, *IntermediateIO;
-    float *Velocities, *FitnessArray, *PersonalBestWeights;
+    float *Velocities, *FitnessArray, *PersonalBestFitness, *PersonalBestWeights;
     curandState_t *States;
 
 public:
